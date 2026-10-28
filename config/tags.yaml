@@ -1,0 +1,88 @@
+# Tag dictionary for the simulated plant.
+# All sources are SIMULATED. No live PLC/DCS connection is made.
+# Fields:
+#   description, unit, min, max          engineering range
+#   max_age_seconds                      freshness limit
+#   flatline_samples                     identical consecutive values => FLATLINE
+#   sample_rate_seconds                  expected sample interval
+#   source                               origin of the tag
+#   nominal / noise                      used by the simulator only
+
+tags:
+  ore_feed_tph:
+    description: Ore feed rate
+    unit: t/h
+    min: 0
+    max: 100
+    max_age_seconds: 10
+    flatline_samples: 5
+    sample_rate_seconds: 2
+    source: SIM_PLANT
+    nominal: 31.25
+    noise: 1.5
+  cu_grade_pct:
+    description: Copper grade in feed
+    unit: "%"
+    min: 0
+    max: 5
+    max_age_seconds: 10
+    flatline_samples: 5
+    sample_rate_seconds: 2
+    source: SIM_PLANT
+    nominal: 0.60
+    noise: 0.03
+  ph:
+    description: Leach solution pH
+    unit: pH
+    min: 0
+    max: 14
+    max_age_seconds: 10
+    flatline_samples: 5
+    sample_rate_seconds: 2
+    source: SIM_PLANT
+    nominal: 1.62
+    noise: 0.05
+  temperature_c:
+    description: Process temperature
+    unit: degC
+    min: 0
+    max: 120
+    max_age_seconds: 10
+    flatline_samples: 5
+    sample_rate_seconds: 2
+    source: SIM_PLANT
+    nominal: 35.2
+    noise: 0.4
+  flow_m3h:
+    description: Solution flow rate
+    unit: m3/h
+    min: 0
+    max: 300
+    max_age_seconds: 10
+    flatline_samples: 5
+    sample_rate_seconds: 2
+    source: SIM_PLANT
+    nominal: 125.4
+    noise: 3.0
+  current_a:
+    description: Motor current
+    unit: A
+    min: 0
+    max: 1500
+    max_age_seconds: 10
+    flatline_samples: 5
+    sample_rate_seconds: 2
+    source: SIM_PLANT
+    nominal: 850
+    noise: 12
+  voltage_v:
+    description: Motor voltage
+    unit: V
+    min: 0
+    max: 700
+    max_age_seconds: 10
+    flatline_samples: 5
+    sample_rate_seconds: 2
+    source: SIM_PLANT
+    nominal: 410
+    noise: 2

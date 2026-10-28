@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Industrial Data Monitor</title>
+<style>
+  :root {
+    --bg:#0f1720; --panel:#17212d; --text:#e8eef5; --muted:#8fa0b3; --border:#2a3a4c;
+    --good:#2fb36d; --warn:#e0a82e; --bad:#e5534b; --info:#4c8fe0;
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: system-ui, sans-serif; background:var(--bg); color:var(--text); }
+  header { padding:16px 24px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:baseline; flex-wrap:wrap; gap:8px; }
+  h1 { font-size:18px; margin:0; letter-spacing:.08em; }
+  #status { color:var(--muted); font-size:13px; }
+  main { padding:24px; max-width:1100px; margin:0 auto; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:12px; }
+  .tile { background:var(--panel); border:1px solid var(--border); border-left:6px solid var(--muted); border-radius:6px; padding:12px 14px; }
+  .tile .name { font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; }
+  .tile .value { font-size:28px; font-weight:600; margin:6px 0 2px; font-variant-numeric:tabular-nums; }
+  .tile .unit { font-size:14px; color:var(--muted); font-weight:400; }
+  .badge { display:inline-block; font-size:12px; font-weight:700; padding:2px 8px; border-radius:10px; color:#0b1118; background:var(--muted); }
+  .q-GOOD { border-left-color:var(--good); } .q-GOOD .badge { background:var(--good); }
+  .q-STALE, .q-FLATLINE { border-left-color:var(--warn); } .q-STALE .badge, .q-FLATLINE .badge { background:var(--warn); }
+  .q-MISSING, .q-OUT_OF_RANGE, .q-INVALID { border-left-color:var(--bad); } .q-MISSING .badge, .q-OUT_OF_RANGE .badge, .q-INVALID .badge { background:var(--bad); }
+  h2 { font-size:14px; color:var(--muted); letter-spacing:.08em; text-transform:uppercase; margin:28px 0 10px; }
+  .summary { display:flex; flex-wrap:wrap; gap:10px; }
+  .chip { background:var(--panel); border:1px solid var(--border); border-radius:6px; padding:8px 12px; font-size:14px; }
+  .chip b { font-variant-numeric:tabular-nums; }
+  .controls { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+  button { background:var(--panel); color:var(--text); border:1px solid var(--border); border-radius:6px; padding:8px 12px; font-size:14px; cursor:pointer; }
+  button:hover { border-color:var(--info); }
+  button.active { border-color:var(--info); box-shadow:0 0 0 1px var(--info); }
+  .note { color:var(--muted); font-size:12px; margin-top:8px; }
+  #error { display:none; background:#3b1d1d; border:1px solid var(--bad); padding:8px 12px; border-radius:6px; margin-bottom:12px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>INDUSTRIAL DATA MONITOR</h1>
+  <div id="status">Connecting…</div>
+</header>
+<main>
+  <div id="error" role="alert"></div>
+  <div id="tiles" class="grid" aria-live="polite"></div>
+
+  <h2>Data quality (recent readings)</h2>
+  <div id="summary" class="summary"></div>
+
+  <h2>Simulator scenario (simulated data only)</h2>
+  <div id="controls" class="controls"></div>
+  <p class="note">Scenarios change the simulated feed only. This dashboard is read-only and never connects to or writes to any plant control system.</p>
+</main>
+<script>
+const SCENARIOS = ["normal","missing","stale","flatline","out_of_range","invalid"];
+const QUALITIES = ["GOOD","STALE","FLATLINE","MISSING","OUT_OF_RANGE","INVALID"];
+const tilesEl = document.getElementById("tiles");
+const summaryEl = document.getElementById("summary");
+const statusEl = document.getElementById("status");
+const errorEl = document.getElementById("error");
+const controlsEl = document.getElementById("controls");
+let tagInfo = {};
+let current = "normal";
+
+function el(tag, cls, text) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text !== undefined) e.textContent = text;
+  return e;
+}
+function showError(msg) { errorEl.style.display = msg ? "block" : "none"; errorEl.textContent = msg || ""; }
+async function getJSON(url, opts) {
+  const r = await fetch(url, opts);
+  if (!r.ok) throw new Error(url + " -> HTTP " + r.status);
+  return r.json();
+}
+function fmt(v) {
+  if (v === null || v === undefined) return "—";
+  return typeof v === "number" ? v.toFixed(2) : String(v);
+}
+
+function renderTiles(latest) {
+  tilesEl.replaceChildren();
+  const names = Object.keys(latest.data || {});
+  if (!names.length) { tilesEl.appendChild(el("div", "note", "No data yet. Waiting for the simulator…")); return; }
+  for (const name of names) {
+    const d = latest.data[name];
+    const tile = el("div", "tile q-" + d.quality);
+    tile.appendChild(el("div", "name", (tagInfo[name] && tagInfo[name].description) || name));
+    const val = el("div", "value", fmt(d.value));
+    val.appendChild(el("span", "unit", " " + (d.unit || "")));
+    tile.appendChild(val);
+    tile.appendChild(el("span", "badge", d.quality));
+    tilesEl.appendChild(tile);
+  }
+}
+function renderSummary(s) {
+  summaryEl.replaceChildren();
+  for (const q of QUALITIES) {
+    const chip = el("div", "chip", q.replace("_", " ") + " ");
+    chip.appendChild(el("b", "", (s.percent[q] ?? 0) + "%"));
+    summaryEl.appendChild(chip);
+  }
+}
+function renderControls() {
+  controlsEl.replaceChildren();
+  for (const sc of SCENARIOS) {
+    const b = el("button", sc === current ? "active" : "", sc.replace("_", " "));
+    b.onclick = async () => {
+      try {
+        await getJSON("/simulate/scenario", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({scenario: sc}) });
+        current = sc; renderControls();
+      } catch (e) { showError(e.message); }
+    };
+    controlsEl.appendChild(b);
+  }
+}
+async function refresh() {
+  try {
+    const [latest, summary] = await Promise.all([getJSON("/latest"), getJSON("/quality-summary")]);
+    renderTiles(latest); renderSummary(summary); showError("");
+    statusEl.textContent = latest.timestamp ? "Last sample: " + latest.timestamp : "Waiting for data";
+  } catch (e) {
+    showError("Cannot reach the service: " + e.message);
+    statusEl.textContent = "Disconnected";
+  }
+}
+async function init() {
+  try {
+    tagInfo = await getJSON("/tags");
+    const h = await getJSON("/health");
+    current = h.simulator_scenario || "normal";
+  } catch (e) { showError(e.message); }
+  renderControls(); refresh(); setInterval(refresh, 2000);
+}
+init();
+</script>
+</body>
+</html>
